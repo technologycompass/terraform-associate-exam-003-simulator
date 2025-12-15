@@ -3,6 +3,7 @@ export enum AppStatus {
   GENERATING = 'GENERATING',
   TESTING = 'TESTING',
   REVIEW = 'REVIEW',
+  CHEATSHEET = 'CHEATSHEET',
 }
 
 export interface Question {

@@ -10,6 +10,7 @@ import {
 import { generatePracticeTest } from './services/geminiService';
 import { Timer } from './components/Timer';
 import { QuestionCard } from './components/QuestionCard';
+import { CheatSheet } from './components/CheatSheet';
 import { 
   Server, 
   BookOpen, 
@@ -27,7 +28,8 @@ import {
   LayoutGrid,
   AlertTriangle,
   CheckCircle,
-  XCircle
+  XCircle,
+  FileText
 } from 'lucide-react';
 
 export default function App() {
@@ -198,9 +200,17 @@ export default function App() {
           <h1 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">
             Terraform Associate (003) <span className="text-indigo-600">Simulator</span>
           </h1>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+          <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">
             Full-length, timed practice exams (57 Questions, 60 Minutes) tailored to the official HashiCorp objectives with intelligent topic weighting.
           </p>
+          
+          <button 
+            onClick={() => setStatus(AppStatus.CHEATSHEET)}
+            className="inline-flex items-center px-6 py-3 bg-white text-indigo-600 border border-indigo-200 rounded-full font-bold shadow-sm hover:shadow-md hover:bg-indigo-50 transition-all"
+          >
+            <FileText size={18} className="mr-2" />
+            Study Cheat Sheet
+          </button>
         </div>
 
         {/* Stats Section */}
@@ -653,6 +663,7 @@ export default function App() {
       {status === AppStatus.GENERATING && renderGenerating()}
       {status === AppStatus.TESTING && renderTesting()}
       {status === AppStatus.REVIEW && renderReview()}
+      {status === AppStatus.CHEATSHEET && <CheatSheet onBack={() => setStatus(AppStatus.DASHBOARD)} />}
     </div>
   );
 }
