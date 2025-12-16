@@ -13,7 +13,10 @@ import {
   BookOpen,
   Download,
   Loader2,
-  Command
+  Command,
+  CheckSquare,
+  RefreshCw,
+  ArrowDownUp
 } from 'lucide-react';
 
 interface CheatSheetProps {
@@ -163,8 +166,13 @@ export const CheatSheet: React.FC<CheatSheetProps> = ({ onBack }) => {
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Code Snippet */}
                   <div className="bg-slate-900 p-4 rounded-lg text-xs font-mono text-indigo-300 overflow-x-auto">
     {`terraform {
+  # 1. Terraform Settings
+  required_version = ">= 1.3.0"
+  
+  # 2. Provider Requirements (Constraints)
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -173,30 +181,39 @@ export const CheatSheet: React.FC<CheatSheetProps> = ({ onBack }) => {
   }
 }
 
+# 3. Provider Configuration (Auth/Region)
 provider "aws" {
   region = "us-west-2"
-}
-
-resource "aws_instance" "web" {
-  ami = "ami-12345"
-}
-
-data "aws_ami" "ubuntu" {
-  most_recent = true
+  alias  = "west" # For multiple regions
 }`}
                   </div>
-                  <div className="space-y-3 text-sm text-slate-700">
-                    <p><strong>Provider:</strong> A plugin that allows Terraform to interact with an API (AWS, Azure, etc).</p>
-                    <p><strong>Resource:</strong> <code className="bg-slate-100 px-1 rounded">resource "type" "name"</code>. Creates infrastructure.</p>
-                    <p><strong>Data Source:</strong> <code className="bg-slate-100 px-1 rounded">data "type" "name"</code>. Reads <em>existing</em> infrastructure.</p>
-                    <p><strong>Terraform Block:</strong> Configures Terraform itself (required version, backend).</p>
+
+                  {/* Explanation */}
+                  <div className="space-y-4 text-sm text-slate-700">
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-2">Terraform Block vs Provider Block</h3>
+                      <div className="space-y-3">
+                        <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                          <code className="text-indigo-700 font-bold block text-xs">terraform {'{ required_providers { ... } }'}</code>
+                          <p className="text-xs text-slate-600 mt-1">
+                            Defines <strong>WHAT</strong> you need. Specifies the source (e.g., hashicorp/aws) and version constraints. Does not authenticate.
+                          </p>
+                        </div>
+                        <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                          <code className="text-indigo-700 font-bold block text-xs">provider "name" {'{ ... }'}</code>
+                          <p className="text-xs text-slate-600 mt-1">
+                            Defines <strong>HOW</strong> to connect. Configures credentials, regions, and API endpoints. This is where you configure the plugin downloaded by init.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Domain 4: CLI (Expanded) */}
+          {/* Domain 4: CLI */}
           <section className="overflow-hidden">
             <div className="flex items-center gap-3 mb-3">
               <Terminal className="text-indigo-600" size={24} />
@@ -387,22 +404,60 @@ data "aws_ami" "ubuntu" {
               <h2 className="text-xl font-bold text-indigo-900">5. Modules</h2>
             </div>
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 text-sm text-slate-700 space-y-4">
-               <p><strong>Root Module:</strong> The working directory where you run Terraform commands.</p>
-               <p><strong>Child Module:</strong> A module called by another module.</p>
-               <div className="bg-slate-900 p-4 rounded-lg text-xs font-mono text-indigo-300">
-{`module "servers" {
-  source = "./app-cluster" # Local path, Registry, or Git URL
-  
-  # Inputs (Variables defined in child module)
-  instance_count = 5 
+               
+               {/* Definitions */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="p-3 bg-slate-50 rounded border border-slate-100">
+                    <strong className="text-indigo-700 block mb-1">Root Module</strong>
+                    <p className="text-xs text-slate-600">The current working directory where you run <code>terraform plan/apply</code>. It is the entry point.</p>
+                 </div>
+                 <div className="p-3 bg-slate-50 rounded border border-slate-100">
+                    <strong className="text-indigo-700 block mb-1">Child Module</strong>
+                    <p className="text-xs text-slate-600">A module called by another module. Sourced from local paths (<code>./app</code>), Registry, or Git.</p>
+                 </div>
+               </div>
+
+               {/* Data Flow Diagram */}
+               <div>
+                  <h3 className="font-bold text-slate-900 border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                    <ArrowDownUp size={16} /> Module Data Flow
+                  </h3>
+                  <div className="flex items-center justify-center gap-8 py-2 text-center text-xs">
+                     <div className="border border-slate-300 rounded p-2 bg-slate-100 w-32">
+                        <strong>Root Module</strong><br/>
+                        (Main config)
+                     </div>
+                     <div className="flex flex-col gap-2 w-32">
+                        <div className="relative border-b border-slate-300">
+                           <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-1 text-slate-500">Variables</span>
+                           <span className="block text-right text-indigo-600 font-bold">&darr;</span>
+                        </div>
+                        <div className="relative border-t border-slate-300">
+                           <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white px-1 text-slate-500">Outputs</span>
+                           <span className="block text-left text-green-600 font-bold">&uarr;</span>
+                        </div>
+                     </div>
+                     <div className="border border-slate-300 rounded p-2 bg-slate-100 w-32">
+                        <strong>Child Module</strong><br/>
+                        (Resource definitions)
+                     </div>
+                  </div>
+                  <div className="mt-3 bg-slate-900 p-3 rounded text-xs font-mono text-indigo-300">
+{`# 1. Root sends data via variables
+module "network" {
+  source = "./modules/vpc"
+  cidr_block = "10.0.0.0/16" # Passing value DOWN
 }
 
-# Accessing Outputs from child module
-output "ip" {
-  value = module.servers.public_ip
+# 2. Child defines outputs (in ./modules/vpc/outputs.tf)
+# output "vpc_id" { value = aws_vpc.main.id }
+
+# 3. Root reads output (Passing value UP)
+resource "aws_instance" "app" {
+  subnet_id = module.network.vpc_id 
 }`}
+                  </div>
                </div>
-               <p><strong>Terraform Registry:</strong> Public repository for providers and modules. Syntax: <code className="bg-slate-100 px-1 rounded">namespace/name/provider</code>.</p>
             </div>
           </section>
 
@@ -432,30 +487,61 @@ output "ip" {
           <section className="overflow-hidden">
              <div className="flex items-center gap-3 mb-3">
               <Database className="text-indigo-600" size={24} />
-              <h2 className="text-xl font-bold text-indigo-900">7. State Management</h2>
+              <h2 className="text-xl font-bold text-indigo-900">7. State Management & Migration</h2>
             </div>
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 text-sm text-slate-700">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div>
-                    <h3 className="font-semibold text-slate-900 mb-2">Why State?</h3>
+                    <h3 className="font-semibold text-slate-900 mb-2">State Basics</h3>
                     <ul className="list-disc pl-5 space-y-1">
                       <li>Maps configuration to real-world resources.</li>
-                      <li>Tracks metadata (dependencies).</li>
-                      <li>Performance (caches attribute values).</li>
-                      <li>Syncing for collaboration.</li>
+                      <li>Tracks metadata (dependencies) and performance cache.</li>
+                      <li><strong>Locking:</strong> Prevents concurrent writes (e.g., DynamoDB for S3).</li>
+                      <li><strong>Security:</strong> Encrypt state (S3 bucket policies) as it contains secrets.</li>
                     </ul>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-slate-900 mb-2">Remote State</h3>
-                    <p className="mb-2">Stored in S3, Azure Blob, Terraform Cloud.</p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li><strong>Locking:</strong> Prevents concurrent writes (e.g., using DynamoDB for S3).</li>
-                      <li><strong>Security:</strong> State contains sensitive data in plain text! Encrypt the bucket.</li>
-                    </ul>
+                    <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                      <RefreshCw size={14} className="text-indigo-600"/> Migration & Backends
+                    </h3>
+                    <div className="space-y-2">
+                       <p className="text-xs">
+                         <strong>To migrate state:</strong> Change <code>backend</code> config, run <code>terraform init</code>, answer "yes" to copy.
+                       </p>
+                       <p className="text-xs">
+                         <strong>Flags:</strong><br/>
+                         <code className="bg-slate-100 px-1 rounded">-migrate-state</code>: Copies existing state to new backend.<br/>
+                         <code className="bg-slate-100 px-1 rounded">-reconfigure</code>: Discards old state linkage (starts fresh).
+                       </p>
+                    </div>
                   </div>
                </div>
-               <div className="mt-4 p-3 bg-amber-50 text-amber-800 rounded border border-amber-100">
-                 <strong>Important:</strong> Never commit <code className="font-mono text-xs">terraform.tfstate</code> to Git. Use <code className="font-mono text-xs">.gitignore</code>.
+               
+               <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                  <h3 className="font-bold text-slate-900 text-xs mb-3 uppercase tracking-wider">Migration Scenarios</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                     <div className="bg-white p-3 rounded border border-slate-200">
+                        <strong className="block mb-1 text-indigo-700">Local &rarr; S3</strong>
+                        1. Add <code>backend "s3"</code> block.<br/>
+                        2. Run <code>terraform init</code>.<br/>
+                        3. Confirm copy.
+                     </div>
+                     <div className="bg-white p-3 rounded border border-slate-200">
+                        <strong className="block mb-1 text-indigo-700">S3 &rarr; Local</strong>
+                        1. Remove <code>backend</code> block.<br/>
+                        2. Run <code>terraform init -migrate-state</code>.<br/>
+                        3. State moves to local file.
+                     </div>
+                     <div className="bg-white p-3 rounded border border-slate-200">
+                        <strong className="block mb-1 text-indigo-700">Local &rarr; HCP (Cloud)</strong>
+                        1. Add <code>cloud {'{ organization = "..." }'}</code> block.<br/>
+                        2. Run <code>terraform init</code>.<br/>
+                        3. Workspace created in TFC.
+                     </div>
+                  </div>
+                  <div className="mt-3 text-xs text-slate-500 italic">
+                     * HCP Terraform replaces the backend. You generally do not use S3 backend *with* HCP Terraform unless running locally (CLI-driven) and just using TFC for other features, but standard TFC stores state itself.
+                  </div>
                </div>
             </div>
           </section>
@@ -466,47 +552,162 @@ output "ip" {
               <FileJson className="text-indigo-600" size={24} />
               <h2 className="text-xl font-bold text-indigo-900">8. Configuration & HCL</h2>
             </div>
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                 <div className="bg-slate-900 p-4 rounded-lg text-xs font-mono text-indigo-300">
-{`variable "region" {
-  type    = string
-  default = "us-west-1"
-  validation { ... }
-  sensitive = true
-}
-
-resource "aws_instance" "app" {
-  count = 2 # Creates list: aws_instance.app[0], [1]
-  # OR
-  for_each = toset(["a", "b"]) # Map: aws_instance.app["a"]
-}
-
-locals {
-  common_tags = { Project = "Demo" }
-}`}
-                 </div>
-                 <div className="text-sm text-slate-700 space-y-2">
-                   <p><strong>Variables:</strong> Input parameters. Can be set via ENV vars (<code className="text-xs">TF_VAR_name</code>), <code className="text-xs">terraform.tfvars</code>, CLI.</p>
-                   
-                   <div className="bg-slate-50 p-3 rounded border border-slate-100 text-xs mt-2">
-                      <strong>Variable Types:</strong>
-                      <ul className="grid grid-cols-2 gap-2 mt-1">
-                         <li><span className="text-indigo-700 font-semibold">string</span>: "hello"</li>
-                         <li><span className="text-indigo-700 font-semibold">number</span>: 42</li>
-                         <li><span className="text-indigo-700 font-semibold">bool</span>: true/false</li>
-                         <li><span className="text-indigo-700 font-semibold">list</span>: ["a", "b"]</li>
-                         <li><span className="text-indigo-700 font-semibold">map</span>: {'{"k"="v"}'}</li>
-                         <li><span className="text-indigo-700 font-semibold">object</span>: Complex struct</li>
-                         <li><span className="text-indigo-700 font-semibold">tuple</span>: Fixed list types</li>
-                         <li><span className="text-indigo-700 font-semibold">set</span>: Unique list</li>
-                      </ul>
-                   </div>
-
-                   <p className="mt-2"><strong>Locals:</strong> Internal constants/helper functions used to Keep code DRY.</p>
-                   <p><strong>Outputs:</strong> Return values to CLI or parent modules.</p>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 text-sm">
+              
+              {/* Types Grid */}
+              <div className="mb-6">
+                 <h3 className="font-bold text-slate-900 border-b border-slate-100 pb-2 mb-3">HCL Data Types</h3>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-3 rounded border border-slate-100">
+                       <strong className="text-indigo-700 text-xs block mb-1">Primitive Types</strong>
+                       <ul className="text-xs space-y-1 text-slate-700">
+                          <li><span className="font-mono bg-white px-1 border rounded">string</span>: <code>"ami-123"</code></li>
+                          <li><span className="font-mono bg-white px-1 border rounded">number</span>: <code>5</code>, <code>2.5</code></li>
+                          <li><span className="font-mono bg-white px-1 border rounded">bool</span>: <code>true</code>, <code>false</code></li>
+                       </ul>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded border border-slate-100">
+                       <strong className="text-indigo-700 text-xs block mb-1">Collection Types</strong>
+                       <ul className="text-xs space-y-1 text-slate-700">
+                          <li><span className="font-mono bg-white px-1 border rounded">list</span>: <code>["a", "b"]</code> (Ordered, same type)</li>
+                          <li><span className="font-mono bg-white px-1 border rounded">map</span>: <code>{'{ foo = "bar" }'}</code> (Key/Value, same type)</li>
+                          <li><span className="font-mono bg-white px-1 border rounded">set</span>: <code>["a", "b"]</code> (Unordered, unique)</li>
+                       </ul>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded border border-slate-100 md:col-span-2">
+                       <strong className="text-indigo-700 text-xs block mb-1">Structural Types</strong>
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="text-xs">
+                             <span className="font-mono bg-white px-1 border rounded">object</span>: Named attributes of different types.
+                             <div className="font-mono text-slate-500 mt-1">object({'{ name=string, age=number }'})</div>
+                          </div>
+                          <div className="text-xs">
+                             <span className="font-mono bg-white px-1 border rounded">tuple</span>: Ordered elements of different types.
+                             <div className="font-mono text-slate-500 mt-1">tuple([string, number, bool])</div>
+                          </div>
+                       </div>
+                    </div>
                  </div>
               </div>
+
+              {/* Syntax & Blocks */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+                 <div>
+                    <h3 className="font-bold text-slate-900 border-b border-slate-100 pb-2 mb-3">Syntax & Logic</h3>
+                    <div className="space-y-4">
+                       <div>
+                          <strong className="text-xs text-indigo-700">Interpolation vs Directives</strong>
+                          <ul className="mt-1 space-y-2 text-xs text-slate-600">
+                             <li>
+                                <strong>Interpolation <code>${'{...}'}</code></strong>: Inserts a value into a string.
+                                <br/><code className="bg-slate-50">"Hello ${'{var.name}'}"</code>
+                             </li>
+                             <li>
+                                <strong>Directives <code>%{'{}'}</code></strong>: Control logic (loops/conditionals) inside strings (heredoc).
+                                <br/><code className="bg-slate-50">"%{'{if var.enabled}'} value %{'{endif}'}"</code>
+                             </li>
+                          </ul>
+                       </div>
+                       
+                       <div>
+                          <strong className="text-xs text-indigo-700">Resource Meta-Arguments</strong>
+                          <ul className="mt-1 space-y-1 text-xs text-slate-600">
+                             <li><code className="font-bold">count</code>: Creates N instances (uses index).</li>
+                             <li><code className="font-bold">for_each</code>: Creates instances from map/set (uses key).</li>
+                             <li><code className="font-bold">depends_on</code>: Explicit dependency definition.</li>
+                             <li><code className="font-bold">lifecycle</code>: <code>create_before_destroy</code>, <code>prevent_destroy</code>, <code>ignore_changes</code>.</li>
+                             <li><code className="font-bold">provider</code>: Select non-default provider alias.</li>
+                          </ul>
+                       </div>
+                    </div>
+                 </div>
+
+                 <div>
+                    <h3 className="font-bold text-slate-900 border-b border-slate-100 pb-2 mb-3">Top-Level Blocks</h3>
+                    <div className="overflow-hidden rounded border border-slate-200">
+                       <table className="w-full text-xs text-left">
+                          <thead className="bg-slate-50 text-slate-500 font-semibold">
+                             <tr>
+                                <th className="p-2 border-b">Block</th>
+                                <th className="p-2 border-b">Purpose</th>
+                             </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                             <tr>
+                                <td className="p-2 font-mono text-indigo-700">terraform</td>
+                                <td className="p-2">Settings (backend, required_version).</td>
+                             </tr>
+                             <tr>
+                                <td className="p-2 font-mono text-indigo-700">provider</td>
+                                <td className="p-2">Configure plugin (region, creds).</td>
+                             </tr>
+                             <tr>
+                                <td className="p-2 font-mono text-indigo-700">resource</td>
+                                <td className="p-2">Manage infra object (EC2, S3).</td>
+                             </tr>
+                             <tr>
+                                <td className="p-2 font-mono text-indigo-700">data</td>
+                                <td className="p-2">Read external object.</td>
+                             </tr>
+                             <tr>
+                                <td className="p-2 font-mono text-indigo-700">variable</td>
+                                <td className="p-2">Input parameters.</td>
+                             </tr>
+                             <tr>
+                                <td className="p-2 font-mono text-indigo-700">output</td>
+                                <td className="p-2">Return values.</td>
+                             </tr>
+                             <tr>
+                                <td className="p-2 font-mono text-indigo-700">locals</td>
+                                <td className="p-2">Internal constants/expressions.</td>
+                             </tr>
+                             <tr>
+                                <td className="p-2 font-mono text-indigo-700">module</td>
+                                <td className="p-2">Call child module.</td>
+                             </tr>
+                          </tbody>
+                       </table>
+                    </div>
+                 </div>
+              </div>
+
+              {/* Dynamic Blocks */}
+              <div className="mb-6">
+                 <h3 className="font-bold text-slate-900 border-b border-slate-100 pb-2 mb-3">Dynamic Blocks</h3>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="text-xs text-slate-600 space-y-2">
+                       <p>
+                          <strong>Usage:</strong> Dynamically construct repeatable nested blocks (like <code>ingress</code> rules in security groups or <code>tag</code> blocks) based on a collection (list or map).
+                       </p>
+                       <p>
+                          <strong>Key Components:</strong>
+                       </p>
+                       <ul className="list-disc pl-4 space-y-1">
+                          <li><code>dynamic "name"</code>: The name of the nested block to generate.</li>
+                          <li><code>for_each</code>: The collection to iterate over.</li>
+                          <li><code>content</code>: The body of each generated block.</li>
+                          <li><code>iterator</code> (optional): Custom name for the loop variable (default is block name).</li>
+                       </ul>
+                    </div>
+                    <div className="bg-slate-900 p-3 rounded-lg text-xs font-mono text-indigo-300 overflow-x-auto">
+{`resource "aws_security_group" "example" {
+  name = "example"
+
+  # Generates multiple 'ingress' blocks
+  dynamic "ingress" {
+    for_each = var.service_ports # [80, 443]
+    iterator = port              # Optional rename
+    content {
+      from_port = port.value
+      to_port   = port.value
+      protocol  = "tcp"
+    }
+  }
+}`}
+                    </div>
+                 </div>
+              </div>
+
             </div>
           </section>
 
@@ -517,71 +718,154 @@ locals {
               <h2 className="text-xl font-bold text-indigo-900">9. Terraform Cloud (HCP Terraform)</h2>
             </div>
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 text-sm">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* 9.1 Core Benefits */}
-                <div className="space-y-4">
-                   <h3 className="font-bold text-slate-900 border-b border-slate-100 pb-2">Key Features</h3>
-                   <ul className="space-y-3">
-                     <li className="flex gap-2 items-start">
-                        <div className="mt-1 min-w-[4px] h-[4px] rounded-full bg-indigo-500"></div>
-                        <div>
-                          <strong>Remote State Management:</strong> State is stored securely in the cloud, encrypted at rest. No need to configure S3 buckets manually. History is versioned.
-                        </div>
-                     </li>
-                     <li className="flex gap-2 items-start">
-                        <div className="mt-1 min-w-[4px] h-[4px] rounded-full bg-indigo-500"></div>
-                        <div>
-                          <strong>Remote Execution:</strong> <code className="text-xs bg-slate-100 px-1 border rounded">terraform apply</code> runs on TFC's disposable VMs, not your laptop. Keeps secrets off local disks.
-                        </div>
-                     </li>
-                     <li className="flex gap-2 items-start">
-                         <div className="mt-1 min-w-[4px] h-[4px] rounded-full bg-indigo-500"></div>
-                         <div>
-                           <strong>Private Registry:</strong> Share modules and providers privately within your organization. 
-                         </div>
-                      </li>
-                      <li className="flex gap-2 items-start">
-                         <div className="mt-1 min-w-[4px] h-[4px] rounded-full bg-indigo-500"></div>
-                         <div>
-                           <strong>Cost Estimation:</strong> Shows estimated cost changes for AWS/Azure/GCP resources during the Plan phase.
-                         </div>
-                      </li>
-                   </ul>
+              
+              {/* Feature Comparison */}
+              <div className="mb-6">
+                <h3 className="font-bold text-slate-900 border-b border-slate-100 pb-2 mb-3">CLI (OSS) vs. HCP Terraform</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                    <strong className="text-slate-700 block mb-2">Terraform CLI (OSS)</strong>
+                    <ul className="list-disc pl-4 text-xs space-y-1 text-slate-600">
+                      <li>State stored locally or manually in Remote Backend (S3/Azure).</li>
+                      <li>Execution happens on <strong>local machine</strong> or CI server.</li>
+                      <li><strong>Workspaces:</strong> Just different state files in the same backend.</li>
+                      <li>Secrets managed via local ENV vars or vault.</li>
+                    </ul>
+                  </div>
+                  <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
+                    <strong className="text-indigo-900 block mb-2">HCP Terraform (Cloud)</strong>
+                    <ul className="list-disc pl-4 text-xs space-y-1 text-indigo-800">
+                      <li>State stored & versioned automatically in Cloud.</li>
+                      <li>Execution happens remotely on <strong>ephemeral VMs</strong>.</li>
+                      <li><strong>Workspaces:</strong> Full environments (State + Config + Variables + Access Control).</li>
+                      <li><strong>Private Registry</strong> for sharing modules/providers internally.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* 9.2 Organization & Workspaces */}
+                <div>
+                   <h3 className="font-bold text-slate-900 border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                     <Layers size={16} className="text-indigo-600" /> Structure & Workspaces
+                   </h3>
+                   <div className="space-y-3 text-xs text-slate-700">
+                     <div className="p-2 border border-slate-200 rounded">
+                        <strong>Hierarchy:</strong> Organization &rarr; Projects &rarr; Workspaces
+                     </div>
+                     <p>
+                       <strong>HCP Workspace vs CLI Workspace:</strong><br/>
+                       In CLI, a workspace is just a state file separation (e.g., `default`, `prod`). 
+                       In HCP Terraform, a Workspace is a major unit of organization that connects to a VCS repo, holds specific variable sets, has granular RBAC, and maintains a run history.
+                     </p>
+                     <ul className="list-disc pl-4 space-y-1">
+                       <li><strong>VCS-Driven:</strong> Connect Git repo. PRs trigger Speculative Plans. Merges trigger Apply.</li>
+                       <li><strong>CLI-Driven:</strong> Run `terraform apply` locally, but execution streams to Cloud.</li>
+                       <li><strong>API-Driven:</strong> Trigger via API calls (CI/CD pipelines).</li>
+                     </ul>
+                   </div>
                 </div>
 
-                {/* 9.2 Workflows & Governance */}
-                <div className="space-y-4">
-                   <h3 className="font-bold text-slate-900 border-b border-slate-100 pb-2">Workflows & Governance</h3>
-                   
-                   <div className="bg-slate-50 p-3 rounded border border-slate-100 space-y-2">
-                      <strong>3 Main Workflows:</strong>
-                      <ul className="list-disc pl-4 text-xs space-y-1 text-slate-600">
-                        <li><strong>UI/VCS-driven:</strong> Connect to GitHub/GitLab. Push to branch -&gt; Triggers Plan/Apply.</li>
-                        <li><strong>CLI-driven:</strong> Run <code className="px-1">terraform apply</code> locally, streams logs from cloud runner.</li>
-                        <li><strong>API-driven:</strong> Trigger runs via CI/CD (Jenkins, Actions) using TFC API.</li>
-                      </ul>
-                   </div>
-
-                   <div className="bg-indigo-50 p-3 rounded border border-indigo-100 text-indigo-900">
-                      <strong>Sentinel (Policy as Code):</strong>
-                      <p className="text-xs mt-1 text-indigo-800">
-                        Rules run between <em>Plan</em> and <em>Apply</em>.
-                        <br/>
-                        <strong>Hard Mandatory:</strong> Stops apply if failed.
-                        <br/>
-                        <strong>Soft Mandatory:</strong> Can override by admin.
-                        <br/>
-                        <strong>Advisory:</strong> Log warning only.
+                {/* 9.3 Governance (Sentinel) */}
+                <div>
+                   <h3 className="font-bold text-slate-900 border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                     <CheckSquare size={16} className="text-indigo-600" /> Governance & Policy
+                   </h3>
+                   <div className="space-y-3 text-xs text-slate-700">
+                      <p>
+                        <strong>Sentinel (Policy as Code):</strong> Logic that runs <em>between</em> Plan and Apply phases. It accesses the plan data to enforce rules (e.g., "Instance type must be t2.micro", "Must have tags").
+                      </p>
+                      
+                      <div className="bg-slate-50 p-2 rounded border border-slate-200">
+                        <strong>Enforcement Levels:</strong>
+                        <ul className="mt-1 space-y-1">
+                          <li className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-red-500"></span> <strong>Hard Mandatory:</strong> Prevents apply. Cannot be overridden.</li>
+                          <li className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-yellow-500"></span> <strong>Soft Mandatory:</strong> Prevents apply, but admin can override.</li>
+                          <li className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500"></span> <strong>Advisory:</strong> Warns user, but allows apply.</li>
+                        </ul>
+                      </div>
+                      
+                      <p>
+                        <strong>Cost Estimation:</strong> Predicts monthly cost of resources in the Plan before applying.
                       </p>
                    </div>
-                   
-                   <div className="text-xs text-slate-500 border-t border-slate-100 pt-2">
-                      <strong>Workspace Note:</strong> In CLI, workspaces are just separate state files. In TFC, a Workspace is a full environment containing State + Variables + Connectors + Run History.
-                   </div>
                 </div>
-
               </div>
+
+            </div>
+          </section>
+
+          {/* Section 10: Debugging & Env Vars */}
+          <section className="overflow-hidden">
+             <div className="flex items-center gap-3 mb-3">
+              <Terminal className="text-indigo-600" size={24} />
+              <h2 className="text-xl font-bold text-indigo-900">10. Debugging & Environment</h2>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 text-sm">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  
+                  {/* Logging */}
+                  <div>
+                     <h3 className="font-bold text-slate-900 border-b border-slate-100 pb-2 mb-3">Terraform Logging</h3>
+                     <p className="text-slate-600 mb-2">Enabled via Environment Variables. Use when Terraform crashes or for provider debugging.</p>
+                     
+                     <div className="space-y-3">
+                        <div className="bg-slate-50 p-3 rounded border border-slate-100">
+                           <code className="text-indigo-700 font-bold block mb-1">TF_LOG</code>
+                           <p className="text-xs text-slate-600 mb-2">Sets the verbosity level.</p>
+                           <div className="flex flex-wrap gap-1 text-[10px] uppercase font-bold text-white">
+                              <span className="bg-slate-400 px-1.5 py-0.5 rounded">OFF</span>
+                              <span className="bg-slate-400 px-1.5 py-0.5 rounded">ERROR</span>
+                              <span className="bg-slate-400 px-1.5 py-0.5 rounded">WARN</span>
+                              <span className="bg-slate-400 px-1.5 py-0.5 rounded">INFO</span>
+                              <span className="bg-slate-500 px-1.5 py-0.5 rounded">DEBUG</span>
+                              <span className="bg-indigo-600 px-1.5 py-0.5 rounded">TRACE</span>
+                           </div>
+                           <p className="text-[10px] text-slate-500 mt-2">
+                             <strong>TRACE</strong> is the most verbose (internal TF logs).<br/>
+                             <strong>DEBUG</strong> is standard for troubleshooting.
+                           </p>
+                        </div>
+
+                        <div className="bg-slate-50 p-3 rounded border border-slate-100">
+                           <code className="text-indigo-700 font-bold block mb-1">TF_LOG_PATH</code>
+                           <p className="text-xs text-slate-600">
+                             Path to save the log file (e.g., <code className="bg-white px-1 border rounded">./terraform.log</code>). 
+                             Without this, logs stream to stderr.
+                           </p>
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* Common Env Vars */}
+                  <div>
+                     <h3 className="font-bold text-slate-900 border-b border-slate-100 pb-2 mb-3">Environment Variables</h3>
+                     <ul className="space-y-3">
+                        <li className="flex flex-col gap-1">
+                           <code className="text-indigo-700 font-bold text-xs bg-indigo-50 w-fit px-2 py-0.5 rounded">TF_VAR_name</code>
+                           <span className="text-xs text-slate-600">Sets input variable <code className="font-mono">var.name</code>. Useful for automation/CI.</span>
+                        </li>
+                        <li className="flex flex-col gap-1">
+                           <code className="text-indigo-700 font-bold text-xs bg-indigo-50 w-fit px-2 py-0.5 rounded">TF_INPUT</code>
+                           <span className="text-xs text-slate-600">Set to <code className="font-mono">0</code> or <code className="font-mono">false</code> to disable interactive prompts (for CI/CD automation). Fails if input is required but missing.</span>
+                        </li>
+                        <li className="flex flex-col gap-1">
+                           <code className="text-indigo-700 font-bold text-xs bg-indigo-50 w-fit px-2 py-0.5 rounded">TF_CLI_ARGS</code>
+                           <span className="text-xs text-slate-600">Append arguments to command. E.g. <code className="font-mono">TF_CLI_ARGS_plan="-refresh-only"</code>.</span>
+                        </li>
+                        <li className="flex flex-col gap-1">
+                           <code className="text-indigo-700 font-bold text-xs bg-indigo-50 w-fit px-2 py-0.5 rounded">TF_DATA_DIR</code>
+                           <span className="text-xs text-slate-600">Change location of <code className="font-mono">.terraform</code> directory (plugins/modules).</span>
+                        </li>
+                        <li className="flex flex-col gap-1">
+                           <code className="text-indigo-700 font-bold text-xs bg-indigo-50 w-fit px-2 py-0.5 rounded">TF_WORKSPACE</code>
+                           <span className="text-xs text-slate-600">Selects workspace for non-interactive environments.</span>
+                        </li>
+                     </ul>
+                  </div>
+
+               </div>
             </div>
           </section>
 
