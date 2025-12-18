@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { 
   AppStatus, 
@@ -27,9 +28,8 @@ import {
   History,
   LayoutGrid,
   AlertTriangle,
-  CheckCircle,
-  XCircle,
-  FileText
+  FileText,
+  Flag
 } from 'lucide-react';
 
 export default function App() {
@@ -37,15 +37,14 @@ export default function App() {
   const [currentTestId, setCurrentTestId] = useState<number>(0);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
+  const [flaggedIndices, setFlaggedIndices] = useState<Set<number>>(new Set());
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [result, setResult] = useState<TestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
   
-  // Historical data
   const [testHistory, setTestHistory] = useState<TestResult[]>([]);
 
-  // Load history on mount
   useEffect(() => {
     const saved = localStorage.getItem('terraform_prep_history');
     if (saved) {
@@ -57,7 +56,6 @@ export default function App() {
     }
   }, []);
 
-  // Save history on update
   useEffect(() => {
     if (testHistory.length > 0) {
       localStorage.setItem('terraform_prep_history', JSON.stringify(testHistory));
@@ -70,6 +68,7 @@ export default function App() {
       setCurrentTestId(testId);
       setError(null);
       setIsSubmitConfirmOpen(false);
+      setFlaggedIndices(new Set());
       
       const generatedQuestions = await generatePracticeTest(testId);
       
@@ -101,12 +100,23 @@ export default function App() {
           newSelected.push(optionIndex);
         }
       } else {
-        // Single select behavior
         newSelected = [optionIndex];
       }
 
       return { ...ans, selectedIndices: newSelected };
     }));
+  };
+
+  const handleToggleFlag = (index: number) => {
+    setFlaggedIndices(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
   };
 
   const submitTest = useCallback(() => {
@@ -116,7 +126,6 @@ export default function App() {
       const userAnswer = userAnswers.find(a => a.questionId === q.id);
       if (!userAnswer) return;
 
-      // Exact match required for point
       const correctSet = new Set(q.correctAnswerIndices);
       const userSet = new Set(userAnswer.selectedIndices);
       
@@ -125,7 +134,7 @@ export default function App() {
       }
     });
 
-    const passed = (score / questions.length) >= 0.7; // 70% passing score
+    const passed = (score / questions.length) >= 0.7;
 
     const newResult: TestResult = {
       testId: currentTestId,
@@ -139,11 +148,10 @@ export default function App() {
 
     setResult(newResult);
     setTestHistory(prev => [newResult, ...prev]);
-    setCurrentQuestionIndex(0); // Reset index for review mode
+    setCurrentQuestionIndex(0);
     setStatus(AppStatus.REVIEW);
   }, [questions, userAnswers, currentTestId]);
 
-  // --- Statistics Logic ---
   const getAverageScore = () => {
     if (testHistory.length === 0) return 0;
     const totalPercentage = testHistory.reduce((acc, curr) => acc + (curr.score / curr.totalQuestions), 0);
@@ -158,8 +166,6 @@ export default function App() {
 
   const getTopicPerformance = () => {
     const topicStats: Record<string, { correct: number, total: number }> = {};
-    
-    // Initialize
     EXAM_TOPIC_CONFIG.forEach(t => {
       topicStats[t.name] = { correct: 0, total: 0 };
     });
@@ -170,19 +176,14 @@ export default function App() {
         const correctSet = new Set(q.correctAnswerIndices);
         const userSet = new Set(userAnswer?.selectedIndices || []);
         const isCorrect = correctSet.size === userSet.size && [...correctSet].every(x => userSet.has(x));
-
-        // Fuzzy match topic name just in case AI generated slightly different string
         const topicKey = Object.keys(topicStats).find(k => k.includes(q.domain)) || q.domain;
-        
         if (!topicStats[topicKey]) {
             topicStats[topicKey] = { correct: 0, total: 0 };
         }
-        
         topicStats[topicKey].total++;
         if (isCorrect) topicStats[topicKey].correct++;
       });
     });
-
     return topicStats;
   };
 
@@ -203,7 +204,6 @@ export default function App() {
           <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">
             Full-length, timed practice exams (57 Questions, 60 Minutes) tailored to the official HashiCorp objectives with intelligent topic weighting.
           </p>
-          
           <button 
             onClick={() => setStatus(AppStatus.CHEATSHEET)}
             className="inline-flex items-center px-6 py-3 bg-white text-indigo-600 border border-indigo-200 rounded-full font-bold shadow-sm hover:shadow-md hover:bg-indigo-50 transition-all"
@@ -213,13 +213,11 @@ export default function App() {
           </button>
         </div>
 
-        {/* Stats Section */}
         {testHistory.length > 0 && (
           <div className="mb-12 space-y-6">
             <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
               <BarChart3 className="text-indigo-600" /> Performance Analytics
             </h2>
-            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <div className="text-slate-500 text-sm font-medium uppercase tracking-wider mb-2">Tests Taken</div>
@@ -238,7 +236,6 @@ export default function App() {
                 </div>
               </div>
             </div>
-
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
               <h3 className="text-sm font-bold text-slate-900 mb-4 uppercase tracking-wider flex items-center gap-2">
                 <PieChart size={16} /> Knowledge Breakdown
@@ -254,10 +251,7 @@ export default function App() {
                          <span className="font-bold text-slate-900">{percentage}%</span>
                        </div>
                        <div className="w-full bg-slate-100 rounded-full h-2.5">
-                         <div 
-                           className={`h-2.5 rounded-full ${percentage >= 70 ? 'bg-green-500' : (percentage >= 50 ? 'bg-yellow-400' : 'bg-red-400')}`} 
-                           style={{ width: `${percentage}%` }}
-                         ></div>
+                         <div className={`h-2.5 rounded-full ${percentage >= 70 ? 'bg-green-500' : (percentage >= 50 ? 'bg-yellow-400' : 'bg-red-400')}`} style={{ width: `${percentage}%` }}></div>
                        </div>
                      </div>
                    )
@@ -277,7 +271,6 @@ export default function App() {
         <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-6">
           <BookOpen className="text-indigo-600" /> Start New Exam
         </h2>
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 10 }).map((_, i) => {
             const testNum = i + 1;
@@ -332,8 +325,6 @@ export default function App() {
 
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
-        
-        {/* Submit Confirmation Modal */}
         {isSubmitConfirmOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 relative">
@@ -348,7 +339,6 @@ export default function App() {
                   </p>
                 </div>
               </div>
-
               <div className="bg-slate-50 rounded-lg p-4 mb-6 border border-slate-200">
                 <div className="flex justify-between items-center mb-2">
                    <span className="text-slate-600 font-medium">Questions Answered:</span>
@@ -360,60 +350,37 @@ export default function App() {
                      <span>{unansweredCount}</span>
                   </div>
                 )}
+                <div className="flex justify-between items-center text-amber-700 font-medium mt-1">
+                   <span>Flagged for Review:</span>
+                   <span>{flaggedIndices.size}</span>
+                </div>
               </div>
-
               <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setIsSubmitConfirmOpen(false)}
-                  className="px-5 py-2.5 text-slate-700 font-medium hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  Continue Testing
-                </button>
-                <button
-                  onClick={submitTest}
-                  className="px-5 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 shadow-md transition-colors"
-                >
-                  Confirm & Submit
-                </button>
+                <button onClick={() => setIsSubmitConfirmOpen(false)} className="px-5 py-2.5 text-slate-700 font-medium hover:bg-slate-100 rounded-lg transition-colors">Continue Testing</button>
+                <button onClick={submitTest} className="px-5 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 shadow-md transition-colors">Confirm & Submit</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Header */}
         <div className="sticky top-4 z-40 bg-white/95 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl p-4 mb-6 flex items-center justify-between">
           <div className="flex flex-col">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Question</span>
             <span className="text-xl font-bold text-slate-900">{currentQuestionIndex + 1} <span className="text-slate-400 text-base font-normal">/ {questions.length}</span></span>
           </div>
-          
-          <Timer 
-            durationSeconds={EXAM_DURATION_SECONDS} 
-            onTimeUp={submitTest} 
-          />
-          
-          <button 
-            onClick={() => setIsSubmitConfirmOpen(true)}
-            className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-          >
-            Submit Exam
-          </button>
+          <Timer durationSeconds={EXAM_DURATION_SECONDS} onTimeUp={submitTest} />
+          <button onClick={() => setIsSubmitConfirmOpen(true)} className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">Submit Exam</button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-           {/* Question Area */}
            <div className="lg:col-span-8">
-              {/* Progress Bar */}
               <div className="mb-6">
                  <div className="flex justify-between text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">
                    <span>Exam Progress</span>
                    <span>{Math.round(progressPercentage)}%</span>
                  </div>
                  <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                   <div 
-                     className="bg-indigo-600 h-full rounded-full transition-all duration-500 ease-out" 
-                     style={{ width: `${progressPercentage}%` }}
-                   ></div>
+                   <div className="bg-indigo-600 h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${progressPercentage}%` }}></div>
                  </div>
               </div>
 
@@ -421,48 +388,38 @@ export default function App() {
                 question={currentQ}
                 selectedIndices={currentAns?.selectedIndices || []}
                 onToggleOption={(optIdx) => handleOptionToggle(currentQ.id, optIdx)}
+                isFlagged={flaggedIndices.has(currentQuestionIndex)}
+                onToggleFlag={() => handleToggleFlag(currentQuestionIndex)}
               />
               
               <div className="flex justify-between items-center mt-6">
-                <button 
-                    onClick={() => setCurrentQuestionIndex(p => Math.max(0, p - 1))}
-                    disabled={currentQuestionIndex === 0}
-                    className="flex items-center px-5 py-2.5 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors shadow-sm"
-                  >
-                    <ArrowLeft size={18} className="mr-2" /> Previous
-                  </button>
-                  
-                  <button 
-                    onClick={() => setCurrentQuestionIndex(p => Math.min(questions.length - 1, p + 1))}
-                    disabled={currentQuestionIndex === questions.length - 1}
-                    className="flex items-center px-5 py-2.5 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors shadow-sm"
-                  >
-                    Next <ArrowRight size={18} className="ml-2" />
-                  </button>
+                <button onClick={() => setCurrentQuestionIndex(p => Math.max(0, p - 1))} disabled={currentQuestionIndex === 0} className="flex items-center px-5 py-2.5 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors shadow-sm">
+                  <ArrowLeft size={18} className="mr-2" /> Previous
+                </button>
+                <button onClick={() => setCurrentQuestionIndex(p => Math.min(questions.length - 1, p + 1))} disabled={currentQuestionIndex === questions.length - 1} className="flex items-center px-5 py-2.5 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors shadow-sm">
+                  Next <ArrowRight size={18} className="ml-2" />
+                </button>
               </div>
            </div>
 
-           {/* Navigation Grid (Question Palette) */}
            <div className="lg:col-span-4">
              <div className="bg-white border border-slate-200 rounded-xl p-5 sticky top-28 shadow-sm">
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
                   <LayoutGrid size={16} className="text-indigo-600" /> Question Palette
                 </h3>
-                
-                {/* Reduced size tiles with tighter grid */}
                 <div className="grid grid-cols-8 sm:grid-cols-10 lg:grid-cols-8 gap-1.5">
                   {questions.map((q, idx) => {
                     const ans = userAnswers.find(a => a.questionId === q.id);
                     const isAnswered = ans && ans.selectedIndices.length > 0;
                     const isCurrent = idx === currentQuestionIndex;
+                    const isFlagged = flaggedIndices.has(idx);
                     
                     return (
                       <button
                         key={idx}
                         onClick={() => setCurrentQuestionIndex(idx)}
-                        title={q.questionText}
                         className={`
-                          h-7 w-full flex items-center justify-center rounded text-[10px] font-bold transition-all duration-150
+                          relative h-8 w-full flex items-center justify-center rounded text-[10px] font-bold transition-all duration-150
                           ${isCurrent 
                             ? 'bg-white text-indigo-700 ring-2 ring-indigo-600 z-10 scale-110 shadow-md' 
                             : isAnswered 
@@ -472,15 +429,19 @@ export default function App() {
                         `}
                       >
                         {idx + 1}
+                        {isFlagged && (
+                          <div className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 shadow-sm border border-white">
+                            <Flag size={8} fill="white" />
+                          </div>
+                        )}
                       </button>
                     )
                   })}
                 </div>
-                
                 <div className="mt-6 space-y-2 text-xs text-slate-500 font-medium">
                    <div className="flex items-center gap-2">
                       <div className="w-3 h-3 bg-white border border-indigo-600 ring-2 ring-indigo-600 rounded-sm"></div>
-                      <span>Current Question</span>
+                      <span>Current</span>
                    </div>
                    <div className="flex items-center gap-2">
                       <div className="w-3 h-3 bg-indigo-600 rounded-sm"></div>
@@ -489,6 +450,12 @@ export default function App() {
                    <div className="flex items-center gap-2">
                       <div className="w-3 h-3 bg-slate-50 border border-slate-200 rounded-sm"></div>
                       <span>Unanswered</span>
+                   </div>
+                   <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-amber-500 rounded-sm flex items-center justify-center">
+                        <Flag size={8} className="text-white" fill="white" />
+                      </div>
+                      <span>Flagged for Review</span>
                    </div>
                 </div>
              </div>
@@ -500,15 +467,12 @@ export default function App() {
 
   const renderReview = () => {
     if (!result) return null;
-    
     const percentage = Math.round((result.score / result.totalQuestions) * 100);
     const currentQ = result.questions[currentQuestionIndex];
     const currentUserAns = result.userAnswers.find(a => a.questionId === currentQ.id);
 
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
-        
-        {/* Result Header */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
           <div className={`${result.passed ? 'bg-green-600' : 'bg-red-600'} p-6 text-white text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-6`}>
             <div className="flex items-center gap-4">
@@ -516,26 +480,15 @@ export default function App() {
                 <Award size={32} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold">
-                  {result.passed ? "Exam Passed!" : "Exam Failed"}
-                </h2>
-                <p className="text-white/80">
-                  You scored {percentage}% ({result.score} / {result.totalQuestions})
-                </p>
+                <h2 className="text-2xl font-bold">{result.passed ? "Exam Passed!" : "Exam Failed"}</h2>
+                <p className="text-white/80">You scored {percentage}% ({result.score} / {result.totalQuestions})</p>
               </div>
             </div>
-            
             <div className="flex gap-3">
-               <button 
-                 onClick={() => setStatus(AppStatus.DASHBOARD)}
-                 className="flex items-center px-4 py-2 bg-white text-slate-700 border border-transparent rounded-lg hover:bg-slate-100 font-medium transition-colors shadow-sm text-sm"
-               >
+               <button onClick={() => setStatus(AppStatus.DASHBOARD)} className="flex items-center px-4 py-2 bg-white text-slate-700 border border-transparent rounded-lg hover:bg-slate-100 font-medium transition-colors shadow-sm text-sm">
                  <BookOpen size={16} className="mr-2" /> Dashboard
                </button>
-               <button 
-                 onClick={() => startTest(currentTestId)}
-                 className="flex items-center px-4 py-2 bg-indigo-900/30 text-white border border-white/20 rounded-lg hover:bg-indigo-900/50 font-medium transition-colors shadow-sm text-sm"
-               >
+               <button onClick={() => startTest(currentTestId)} className="flex items-center px-4 py-2 bg-indigo-900/30 text-white border border-white/20 rounded-lg hover:bg-indigo-900/50 font-medium transition-colors shadow-sm text-sm">
                  <RotateCcw size={16} className="mr-2" /> Retake
                </button>
             </div>
@@ -543,7 +496,6 @@ export default function App() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Question Review Pane */}
           <div className="lg:col-span-8">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
@@ -551,55 +503,41 @@ export default function App() {
                 Reviewing Question {currentQuestionIndex + 1}
               </h3>
             </div>
-            
             <QuestionCard 
               question={currentQ} 
               selectedIndices={currentUserAns?.selectedIndices || []} 
               isReviewMode={true}
+              isFlagged={flaggedIndices.has(currentQuestionIndex)}
             />
-
              <div className="flex justify-between items-center mt-6">
-                <button 
-                    onClick={() => setCurrentQuestionIndex(p => Math.max(0, p - 1))}
-                    disabled={currentQuestionIndex === 0}
-                    className="flex items-center px-5 py-2.5 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors shadow-sm"
-                  >
-                    <ArrowLeft size={18} className="mr-2" /> Previous
-                  </button>
-                  
-                  <button 
-                    onClick={() => setCurrentQuestionIndex(p => Math.min(questions.length - 1, p + 1))}
-                    disabled={currentQuestionIndex === questions.length - 1}
-                    className="flex items-center px-5 py-2.5 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors shadow-sm"
-                  >
-                    Next <ArrowRight size={18} className="ml-2" />
-                  </button>
+                <button onClick={() => setCurrentQuestionIndex(p => Math.max(0, p - 1))} disabled={currentQuestionIndex === 0} className="flex items-center px-5 py-2.5 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors shadow-sm">
+                  <ArrowLeft size={18} className="mr-2" /> Previous
+                </button>
+                <button onClick={() => setCurrentQuestionIndex(p => Math.min(questions.length - 1, p + 1))} disabled={currentQuestionIndex === questions.length - 1} className="flex items-center px-5 py-2.5 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors shadow-sm">
+                  Next <ArrowRight size={18} className="ml-2" />
+                </button>
               </div>
           </div>
-
-          {/* Navigation Palette Pane */}
           <div className="lg:col-span-4">
              <div className="bg-white border border-slate-200 rounded-xl p-5 sticky top-28 shadow-sm">
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
                   <LayoutGrid size={16} className="text-indigo-600" /> Review Palette
                 </h3>
-                
-                {/* Compact Grid for Review Mode */}
                 <div className="grid grid-cols-8 sm:grid-cols-10 lg:grid-cols-8 gap-1.5">
                   {result.questions.map((q, idx) => {
                     const ans = result.userAnswers.find(a => a.questionId === q.id);
                     const correctSet = new Set(q.correctAnswerIndices);
                     const userSet = new Set(ans?.selectedIndices || []);
                     const isCorrect = correctSet.size === userSet.size && [...correctSet].every(x => userSet.has(x));
-                    
                     const isCurrent = idx === currentQuestionIndex;
+                    const isFlagged = flaggedIndices.has(idx);
                     
                     return (
                       <button
                         key={idx}
                         onClick={() => setCurrentQuestionIndex(idx)}
                         className={`
-                          h-7 w-full flex items-center justify-center rounded text-[10px] font-bold transition-all duration-150
+                          relative h-8 w-full flex items-center justify-center rounded text-[10px] font-bold transition-all duration-150
                           ${isCurrent ? 'ring-2 ring-indigo-600 z-10 scale-110 shadow-md' : ''}
                           ${isCorrect 
                             ? 'bg-green-100 text-green-700 border border-green-200 hover:bg-green-200' 
@@ -608,15 +546,19 @@ export default function App() {
                         `}
                       >
                         {idx + 1}
+                        {isFlagged && (
+                          <div className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 shadow-sm border border-white">
+                            <Flag size={8} fill="white" />
+                          </div>
+                        )}
                       </button>
                     )
                   })}
                 </div>
-                
                 <div className="mt-6 space-y-2 text-xs text-slate-500 font-medium">
                    <div className="flex items-center gap-2">
                       <div className="w-3 h-3 bg-white border border-indigo-600 ring-2 ring-indigo-600 rounded-sm"></div>
-                      <span>Current View</span>
+                      <span>Viewing</span>
                    </div>
                    <div className="flex items-center gap-2">
                       <div className="w-3 h-3 bg-green-100 border border-green-200 rounded-sm"></div>
@@ -638,10 +580,7 @@ export default function App() {
     <div className="min-h-screen pb-12">
       <nav className="border-b border-slate-200 bg-white sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div 
-            className="flex items-center gap-2 font-bold text-slate-900 cursor-pointer"
-            onClick={() => setStatus(AppStatus.DASHBOARD)}
-          >
+          <div className="flex items-center gap-2 font-bold text-slate-900 cursor-pointer" onClick={() => setStatus(AppStatus.DASHBOARD)}>
             <Server className="text-indigo-600" size={24} />
             <span>TerraPrep.AI</span>
           </div>
@@ -652,13 +591,10 @@ export default function App() {
                  <span>{testHistory.length} Exams Completed</span>
                </div>
              )}
-             <div className="text-xs text-slate-400 font-medium">
-                Exam Version 003
-             </div>
+             <div className="text-xs text-slate-400 font-medium">Exam Version 003</div>
           </div>
         </div>
       </nav>
-
       {status === AppStatus.DASHBOARD && renderDashboard()}
       {status === AppStatus.GENERATING && renderGenerating()}
       {status === AppStatus.TESTING && renderTesting()}
